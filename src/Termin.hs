@@ -57,7 +57,7 @@ startGame action initWorld = do
 gameLoop :: (Renderable a, Renderable b) => Handle -> Game a -> Action a b -> IO()
 gameLoop input game@(Game aux _) action = do
                         animate game
-                        ch <- readAll input ' '
+                        ch <- hGetChar input
                         let (animation, newWorld) = action game ch
                         when (ch /= 'q') $ mapM_ animate (map (\w -> Game aux w) animation) >> gameLoop input newWorld action
 
@@ -67,7 +67,7 @@ animate game@(Game (GameAux (w, h) rnd) world) = do
             mapM_ putStrLn $ addToScreen (replicate h $ replicate w ' ') (w,h) world
             e <- threadDelay (floor(1/fps * 10^6))
             return ()
-                where fps = 15
+                where fps = 20
 
 
 addToScreen :: Renderable a => [String] -> (Int, Int) -> a -> [String]

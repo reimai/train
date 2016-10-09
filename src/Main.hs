@@ -26,14 +26,17 @@ toGame action = \(Game aux world) ch ->
 
 action :: World -> Char -> ([[Point]], World)
 action world@(World train msg attempts moves) ch = fromMaybe ([], world) updated
-    where updated = fmap (\dir -> (animate world dir (newWorld dir), newWorld dir)) (getDir ch)
-          newWorld dir = World (moveTrain train dir) msg attempts $ moves+1
+    where updated = fmap (\cmd -> (animate world cmd (newWorld cmd), newWorld cmd)) cmd
+          newWorld dir = World (actTrain train dir) msg attempts newMoves
+          cmd = parseCommand ch
+          newMoves = fromMaybe moves $ fmap (\c -> if c == SwitchLight then moves else moves + 1) cmd
 
-animate :: World -> Dir -> World -> [[Point]]
-animate before dir after = animateTrains (train before) dir (train after)
+animate :: World -> Command -> World -> [[Point]]
+animate before (Move dir) after = animateTrains (train before) dir (train after)
+animate _ _ _= []
 
 animateTrains :: Train -> Dir -> Train -> [[Point]]
-animateTrains before dir after = map framed $ sliding (showTrain before) dir (showTrain after)
+animateTrains before dir after = map (framed.Moved 0 4) $ sliding (showTrain before) dir (showTrain after)
 
 sliding :: [String] -> Dir -> [String] -> [[String]]
 sliding before RightD after = reverse $ keepSliding [] before after
@@ -47,21 +50,28 @@ keepSliding acc b a = if (all null a) then b:acc else keepSliding (res : acc) re
 slide :: [String] -> [String] -> ([String], [String])
 slide fs ts = (map (\(f,t) -> tail f ++ [head t]) (zip fs ts), map tail ts)
 
-moveTrain :: Train -> Dir -> Train
-moveTrain (Train size car) LeftD = Train size $ nextNode car
-moveTrain (Train size car) RightD = Train size $ prevNode car
-moveTrain train _ = train
+actTrain :: Train -> Command  -> Train
+actTrain train SwitchLight = switchLight train
+actTrain (Train size car) (Move LeftD) = Train size $ nextNode car
+actTrain (Train size car) (Move RightD) = Train size $ prevNode car
+actTrain train _ = train
 
-getDir :: Char -> Maybe Dir
-getDir 'D' = Just LeftD
-getDir 'A' = Just UpD
-getDir 'C' = Just RightD
-getDir 'B' = Just DownD
-getDir _   = Nothing
+data Command = Move Dir | SwitchLight deriving (Show, Eq)
+
+parseCommand :: Char -> Maybe Command
+parseCommand ' ' = Just SwitchLight
+parseCommand ch = fmap Move $ parseDir ch
+
+parseDir :: Char -> Maybe Dir
+parseDir 'D' = Just LeftD
+parseDir 'A' = Just UpD
+parseDir 'C' = Just RightD
+parseDir 'B' = Just DownD
+parseDir _   = Nothing
 
 data World = World {train :: Train, msg :: [Title], attempts :: Int, moves :: Int}
 instance Renderable World where
-    render (World train msg attempts moves) = concat $ map render (RS train:(map RS msg))
+    render (World train msg attempts moves) = concat $ map render (RS train:(map RS $ map framed msg) ++ (map RS $ map framed $ ["moves: " ++ (show moves)]))
 
 data Renderables = forall a. Renderable a => RS a
 instance Renderable Renderables where
@@ -70,7 +80,7 @@ instance Renderable Renderables where
 data Train = Train {size :: Int, car :: DList Bool}
 
 instance Renderable Train where
-    render train = framed $ showTrain train
+    render train = framed $ Moved 0 4 $ showTrain train
 
 showTrain :: Train -> [String]
 showTrain car = if (isLightOn car) then carLight else carNoLight
@@ -94,7 +104,7 @@ carNoLight = [" ________________________ ",
               "    (O)           (O)     "]
 
 framed :: Renderable a => a -> [Point]
-framed smth = (render theFrame) ++ (render $ Moved 10 10 smth)
+framed smth = (render theFrame) ++ (render $ Moved 10 6 smth)
 
 theFrame :: Moved [String]
 theFrame = Moved 9 5 $ frame 28 20
