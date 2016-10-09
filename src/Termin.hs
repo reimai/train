@@ -1,6 +1,6 @@
 --module for stupid & simple console games
 module Termin (
-    addToScreen, readAll, startGame, normalize, Game(..), GameAux(..), AuxState, getCrd
+    addToScreen, readAll, startGame, normalize, Game(..), GameAux(..), Action(..), AuxState, getCrd
 ) where
 
 import Data.List
@@ -25,6 +25,8 @@ data Renderable a => Game a = Game{aux :: GameAux, world :: a}
 data GameAux = GameAux{wnd :: (Int, Int), rnd :: StdGen}
 
 type AuxState a = State GameAux a
+--action updates the world and may return some animaion as a side effect
+type Action a b = Game a -> Char -> ([b], Game a)
 
 getX :: AuxState Int
 getX = getOneCrd fst
@@ -39,7 +41,7 @@ getCrd :: AuxState Crd
 getCrd = getX >>= \x -> getY >>= \y -> return $ Crd x y
 
 
-startGame :: Renderable a => (Game a -> Char -> Game a) -> (GameAux -> Game a) -> IO()
+startGame :: (Renderable a, Renderable b) => Action a b -> (GameAux -> Game a) -> IO()
 startGame action initWorld = do
         hSetBuffering stdin NoBuffering --get input immediately
         hSetEcho stdin False            --don't show the typed character
@@ -52,13 +54,20 @@ startGame action initWorld = do
 
 
 --main loop, read input, change the world, redraw screen 
-gameLoop :: Renderable a => Handle -> Game a -> (Game a -> Char -> Game a) -> IO()
-gameLoop input game@(Game (GameAux (w, h) rnd) world) action = do
-                        mapM_ putStrLn $ addToScreen (replicate h $ replicate w ' ') (w,h) world 
-                        e <- threadDelay (floor(1/fps * 10^6))  
+gameLoop :: (Renderable a, Renderable b) => Handle -> Game a -> Action a b -> IO()
+gameLoop input game@(Game aux _) action = do
+                        animate game
                         ch <- readAll input ' '
-                        when (ch /= 'q') $ gameLoop input (action game ch) action
-                            where fps = 15
+                        let (animation, newWorld) = action game ch
+                        when (ch /= 'q') $ mapM_ animate (map (\w -> Game aux w) animation) >> gameLoop input newWorld action
+
+
+animate :: Renderable a => Game a -> IO()
+animate game@(Game (GameAux (w, h) rnd) world) = do
+            mapM_ putStrLn $ addToScreen (replicate h $ replicate w ' ') (w,h) world
+            e <- threadDelay (floor(1/fps * 10^6))
+            return ()
+                where fps = 15
 
 
 addToScreen :: Renderable a => [String] -> (Int, Int) -> a -> [String]

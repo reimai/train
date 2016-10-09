@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
-
+{-# LANGUAGE UndecidableInstances #-}
 module Geom (
-Title(..), Dir(..), Crd(..), Point(..),
+Title(..), Dir(..), Crd(..), Point(..),Moved(..),
 Renderable, render,
-move, center, isOpposite, isX, isY
+move, movePoint, center, isOpposite, isX, isY
 ) where
-
+import Data.Maybe
 
 move :: Crd -> Dir -> Int -> Crd
 move (Crd x y) dir n | isX dir   = Crd (x+nSign) y
@@ -18,6 +18,8 @@ data Crd = Crd {x :: Int, y :: Int} deriving (Eq, Show)
 data Point = Point {crd :: Crd, sym :: Char} deriving (Eq, Show)
 instance Renderable Point where
     render p = [p]
+instance Renderable [Point] where
+    render = id
 
 movePoint :: Dir -> Int -> Point -> Point
 movePoint dir n (Point crd sym) = Point (move crd dir n) sym
@@ -29,13 +31,17 @@ data Title = Title {str :: String, pos :: Crd}
     deriving (Eq, Show)
 
 instance Renderable Title
-    where render (Title str (Crd x y)) = map ((movePoint DownD y).(movePoint RightD x)) $ render str
+    where render (Title str (Crd x y)) = render $ Moved x y str
 
 instance Renderable [String]
     where render strs = concatMap (\(i, ps) -> map (movePoint DownD i) ps) $ zip [0..] $ map render strs
 
 instance Renderable String
-    where render str = map (\(i, s) -> Point (Crd (i) 0) s) $ zip [0..] str
+    where render str = mapMaybe (\(i, s) -> if (s== ' ') then Nothing else Just (Point (Crd (i) 0) s)) $ zip [0..] str
+
+data Renderable a => Moved a = Moved {dx :: Int, dy :: Int, obj :: a}
+instance Renderable a => Renderable (Moved a)
+    where render (Moved dx dy obj) = map ((movePoint DownD dy).(movePoint RightD dx)) $ render obj
 
 data Dir = RightD | LeftD | UpD | DownD
     deriving (Eq, Show)

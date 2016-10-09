@@ -1,4 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
+
 module Main where
 
 import Debug.Trace
@@ -17,13 +18,34 @@ newWorld aux = Game newAux $ World train [] 0 0
     where (train, newAux) = runState mkTrain aux
 
 -- I don't actually need aux for the action here
-toGame :: (World -> Char -> World) -> (Game World -> Char -> Game World)
-toGame action = (\(Game aux world) ch -> Game aux $ action world ch)
+toGame :: (World -> Char -> ([[Point]], World)) -> Action World [Point]
+toGame action = \(Game aux world) ch ->
+                    let (animation, newWorld) = action world ch in
+                    (animation, Game aux $ newWorld)
 
-action :: World -> Char -> World
-action world@(World train msg attempts moves) ch = fromMaybe world newWorld
-    where newWorld = fmap (\dir -> World (moveTrain train dir) msg attempts $ moves+1) (getDir ch)
 
+action :: World -> Char -> ([[Point]], World)
+action world@(World train msg attempts moves) ch = fromMaybe ([], world) updated
+    where updated = fmap (\dir -> (animate world dir (newWorld dir), newWorld dir)) (getDir ch)
+          newWorld dir = World (moveTrain train dir) msg attempts $ moves+1
+
+animate :: World -> Dir -> World -> [[Point]]
+animate before dir after = animateTrains (train before) dir (train after)
+
+animateTrains :: Train -> Dir -> Train -> [[Point]]
+animateTrains before dir after = map framed $ sliding (showTrain before) dir (showTrain after)
+
+sliding :: [String] -> Dir -> [String] -> [[String]]
+sliding before RightD after = reverse $ keepSliding [] before after
+sliding before LeftD after = keepSliding [] after before
+sliding before _ after = []
+
+keepSliding :: [[String]] -> [String] -> [String] -> [[String]]
+keepSliding acc b a = if (all null a) then b:acc else keepSliding (res : acc) res undone
+    where (res, undone) = slide b a
+
+slide :: [String] -> [String] -> ([String], [String])
+slide fs ts = (map (\(f,t) -> tail f ++ [head t]) (zip fs ts), map tail ts)
 
 moveTrain :: Train -> Dir -> Train
 moveTrain (Train size car) LeftD = Train size $ nextNode car
@@ -47,12 +69,11 @@ instance Renderable Renderables where
 
 data Train = Train {size :: Int, car :: DList Bool}
 
-instance Show Train where
-    show (Train size car) = show $ takeF size car
-
 instance Renderable Train where
-    render train | isLightOn train = render carLight
-                 | otherwise       = render carNoLight
+    render train = framed $ showTrain train
+
+showTrain :: Train -> [String]
+showTrain car = if (isLightOn car) then carLight else carNoLight
 
 isLightOn :: Train -> Bool
 isLightOn (Train size (DLNode prev light next)) = light
@@ -72,6 +93,18 @@ carNoLight = [" ________________________ ",
               " |______________________| ",
               "    (O)           (O)     "]
 
+framed :: Renderable a => a -> [Point]
+framed smth = (render theFrame) ++ (render $ Moved 10 10 smth)
+
+theFrame :: Moved [String]
+theFrame = Moved 9 5 $ frame 28 20
+
+frame :: Int -> Int -> [String]
+frame w h | w <= 2 || h <= 2 = error "that's a wee frame"
+          | otherwise = top : (replicate (h-2) body) ++ [bottom]
+                where top   = ('╔' : replicate (w-2) '═' ++ "╗")
+                      body   = '║' : replicate (w-2) ' ' ++ "║"
+                      bottom =('╚' : replicate (w-2) '═' ++ "╝")
 
 mkTrain :: AuxState Train
 mkTrain = genTrainSize >>= \size -> genLights size >>= \lights -> return $ Train size $ mkDList lights
