@@ -1,0 +1,25 @@
+name:                train
+version:             0.1.0.0
+synopsis:            A looped train simulator
+description:         Ewww, it's odd, please see README.md
+homepage:            https://github.com/reimai/train
+license:             BSD3
+license-file:        LICENSE
+author:              Rei Mai
+maintainer:          naugadina@gmail.com
+copyright:           2016 Rei Mai
+category:            Stupid Games
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  other-modules:     Termin, Geom
+  build-depends:       base >= 4.8 && < 5, ansi-terminal, terminal-size, text, random, transformers
+  default-language:    Haskell2010
+
+executable train
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5, random, ansi-terminal, terminal-size, text, transformers

@@ -1,0 +1,12 @@
+*.hi
+*.o
+*.swp
+*.tag
+*~
+TAGS
+cabal-dev/
+cabal.sandbox.config
+dist/
+tags
+stack.yaml
+.stack-work
