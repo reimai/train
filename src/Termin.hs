@@ -26,7 +26,7 @@ data GameAux = GameAux{wnd :: (Int, Int), rnd :: StdGen}
 
 type AuxState a = State GameAux a
 --action updates the world and may return some animaion as a side effect
-type Action a b = Game a -> Char -> ([b], Game a)
+type Action a b = Game a -> String -> ([b], Game a)
 
 getX :: AuxState Int
 getX = getOneCrd fst
@@ -58,7 +58,8 @@ gameLoop :: (Renderable a, Renderable b) => Handle -> Game a -> Action a b -> IO
 gameLoop input game@(Game aux _) action = do
                         animate game
                         ch <- hGetChar input
-                        let (animation, newWorld) = action game ch
+                        str <- readInput input ch
+                        let (animation, newWorld) = action game str
                         when (ch /= 'q') $ mapM_ animate (map (\w -> Game aux w) animation) >> gameLoop input newWorld action
 
 
@@ -67,7 +68,7 @@ animate game@(Game (GameAux (w, h) rnd) world) = do
             mapM_ putStrLn $ addToScreen (replicate h $ replicate w ' ') (w,h) world
             e <- threadDelay (floor(1/fps * 10^6))
             return ()
-                where fps = 20
+                where fps = 16
 
 
 addToScreen :: Renderable a => [String] -> (Int, Int) -> a -> [String]
@@ -102,3 +103,14 @@ mergeToLines ((x, xd, xyd):xs) ((y, yd):ys) | x < y     = (x, xd, xyd):(mergeToL
 --read all input from Handle, return only the last char or default
 readAll :: Handle -> Char -> IO(Char)
 readAll h defaultCh = hReady h >>= \gotIt -> if gotIt then (hGetChar h >>= readAll h) else return defaultCh
+
+
+readInput :: Handle -> Char -> IO(String)
+readInput h '\n' = do
+                    hSetEcho h True
+                    putStr "how many cars are there? > "
+                    hFlush stdout
+                    str <- getLine
+                    hSetEcho h False
+                    return ('\n':str)
+readInput _ ch = return [ch]

@@ -13,49 +13,74 @@ main :: IO ()
 main = startGame (toGame action) newWorld
 
 newWorld :: GameAux -> Game World
-newWorld aux = Game newAux $ World train [] 0 0
+newWorld aux = Game newAux $ World train "" 0 0 False
     where (train, newAux) = runState mkTrain aux
 
 -- I don't actually need aux for the action here
-toGame :: (World -> Char -> ([[Point]], World)) -> Action World [Point]
-toGame action = \(Game aux world) ch ->
-                    let (animation, newWorld) = action world ch in
+toGame :: (World -> String -> ([[Point]], World)) -> Action World [Point]
+toGame action = \(Game aux world) str ->
+                    let (animation, newWorld) = action world str in
                     (animation, Game aux $ newWorld)
 
+action :: World -> String -> ([[Point]], World)
+action world str = fromMaybe ([], world) updated
+    where updated = fmap (\c -> let newWorld = actWorld world c in
+                        (animate world c newWorld, newWorld)) $ parseCommand str
 
-action :: World -> Char -> ([[Point]], World)
-action world@(World train msg attempts moves) ch = fromMaybe ([], world) updated
-    where updated = fmap (\cmd -> (animate world cmd (newWorld cmd), newWorld cmd)) cmd
-          newWorld dir = World (actTrain train dir) msg attempts newMoves
-          cmd = parseCommand ch
-          newMoves = if (cmd == Just (Move LeftD) || cmd == Just (Move RightD)) then moves + 1 else moves
+actWorld :: World -> Command -> World
+actWorld w@(World _ _ _ _ True) _ = w
+actWorld world (LetMeOut guess) = goblinKing world guess
+actWorld world cmd = world {train = actTrain oldTrain cmd, moves = newMoves, msg = ""}
+    where oldMoves = moves world
+          oldTrain = train world
+          newMoves = if (cmd == Move LeftD || cmd == Move RightD) then oldMoves + 1 else oldMoves
+
+goblinKing :: World -> Int -> World
+goblinKing world guess | guess == (size $ train world) = world {won = True}
+                       | otherwise = world {attempts = (attempts world) + 1}
 
 animate :: World -> Command -> World -> [[Point]]
-animate before(Move dir) after@(World _ msg att moves)  = map frameInWorld $ animateTrains (train before) dir (train after)
-    where frameInWorld t = concatMap (render.framed) (RS t:(map RS msg) ++ (map RS $ ["moves: " ++ (show moves)]))
+animate before(Move dir) after = map (renderInWorld after) $ animateTrains (train before) dir (train after)
 animate _ _ _ = []
 
 actTrain :: Train -> Command -> Train
 actTrain train SwitchLight = switchLight train
 actTrain train (Move dir) = moveInTrain train dir
 
-data Command = Move Dir | SwitchLight deriving (Show, Eq)
+data Command = Move Dir | LetMeOut Int | SwitchLight deriving (Show, Eq)
 
-parseCommand :: Char -> Maybe Command
-parseCommand ' ' = Just SwitchLight
-parseCommand ch = fmap Move $ parseDir ch
+parseCommand :: String -> Maybe Command
+parseCommand " " = Just SwitchLight
+parseCommand str = orElse (fmap Move $ parseDir str) (fmap LetMeOut $ parseInt str)
 
-parseDir :: Char -> Maybe Dir
-parseDir 'D' = Just LeftD
-parseDir 'A' = Just UpD
-parseDir 'C' = Just RightD
-parseDir 'B' = Just DownD
+orElse :: Maybe a -> Maybe a -> Maybe a
+orElse x@(Just a) _ = x
+orElse _ y = y
+
+parseInt :: String -> Maybe Int
+parseInt str | head str == '\n' = readMaybe str
+                  | otherwise = Nothing
+
+readMaybe :: Read a => String -> Maybe a
+readMaybe s = case reads s of
+                  [(val, "")] -> Just val
+                  _           -> Nothing
+
+parseDir :: String -> Maybe Dir
+parseDir "D" = Just LeftD
+parseDir "A" = Just UpD
+parseDir "C" = Just RightD
+parseDir "B" = Just DownD
 parseDir _   = Nothing
 
-data World = World {train :: Train, msg :: [Title], attempts :: Int, moves :: Int}
+data World = World {train :: Train, msg :: String, attempts :: Int, moves :: Int, won :: Bool}
 instance Renderable World where
-    render (World train msg attempts moves) = concatMap (render.framed) (RS train:(map RS msg) ++ (map RS $ ["moves: " ++ (show moves)]))
+    render world = renderInWorld world $ train world
 
+renderInWorld :: Renderable a => World -> a -> [Point]
+renderInWorld (World _ _ _ _ True) _ = render.framed $ center "You freaking won!" (28, 16)
+renderInWorld (World _ msg attempts moves won) r = concatMap (render.framed) $
+                                                RS r : RS (Title msg (Crd 0 11)) : RS ("moves: " ++ (show moves)) : []
 
 data Renderables = forall a. Renderable a => RS a
 instance Renderable Renderables where
