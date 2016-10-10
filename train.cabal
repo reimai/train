@@ -14,7 +14,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  other-modules:     Termin, Geom
+  other-modules:       Termin, Geom
   build-depends:       base >= 4.8 && < 5, ansi-terminal, terminal-size, text, random, transformers
   default-language:    Haskell2010
 

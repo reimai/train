@@ -3,7 +3,7 @@
 module Geom (
 Title(..), Dir(..), Crd(..), Point(..),Moved(..),
 Renderable, render,
-move, movePoint, center, isOpposite, isX, isY
+move, movePoint, center, isOpposite, isX, isY, sliding
 ) where
 import Data.Maybe
 
@@ -64,3 +64,16 @@ isPositive :: Dir -> Bool
 isPositive RightD = True
 isPositive DownD = True
 isPositive _ = False
+
+
+sliding :: [String] -> Dir -> [String] -> [[String]]
+sliding before RightD after = reverse $ keepSliding [] before after
+sliding before LeftD after = keepSliding [] after before
+sliding before _ after = []
+
+keepSliding :: [[String]] -> [String] -> [String] -> [[String]]
+keepSliding acc b a = if (all null a) then b:acc else keepSliding (res : acc) res undone
+    where (res, undone) = slide b a
+
+slide :: [String] -> [String] -> ([String], [String])
+slide fs ts = (map (\(f,t) -> tail f ++ [head t]) (zip fs ts), map tail ts)
