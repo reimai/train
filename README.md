@@ -1,5 +1,5 @@
 # train
-Looped train simulator, straight from the nightmares and coding interviews
+An endless train simulator, straight from the nightmares and coding interviews
 
 ![howto](https://cloud.githubusercontent.com/assets/1123908/19253517/47f1a50a-8f54-11e6-841e-f23c57442b8c.gif)
 
