@@ -8,6 +8,7 @@ You find yourself in an endless train (carriges form a loop, you see) and the on
 As usual this is not your ordinary js game, it only works in linux (windows chokes on a unicode head character fo some reason and I'm going to investigate why). To play it you have to build it: 
 
     sudo apt-get install haskell-stack
+    stack install random
     stack setup
     stack build && stack exec train 
 
