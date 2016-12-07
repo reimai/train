@@ -5,7 +5,7 @@ An endless train simulator, straight from the nightmares and coding interviews
 
 You find yourself in an endless train (carriges form a loop, you see) and the only way to get out is to count the carriges. You can move around with arrows and switch light with a space. Once you think you've had enough you can press enter and shout the number of carriges. 
 
-As usual this is not your ordinary js game, it only works in linux (windows chokes on a unicode head character fo some reason and I'm going to investigate why). To play it you have to build it: 
+As usual this is not your ordinary js game, it only works in linux (windows chokes on a unicode head character fo some reason and I'm not going to investigate why). To play it you have to build it: 
 
     sudo apt-get install haskell-stack
     stack install random
